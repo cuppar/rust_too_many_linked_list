@@ -110,6 +110,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn iter_mut() {
+        let mut list = List::new();
+        list.push(1);
+        list.push(2);
+        list.push(3);
+
+        assert_eq!(list.peek(), Some(&3));
+
+        let mut iter = list.iter_mut();
+
+        iter.next().map(|i| *i = 9);
+
+        assert_eq!(iter.next(), Some(&mut 2));
+        assert_eq!(iter.next(), Some(&mut 1));
+        assert_eq!(iter.next(), None);
+
+        assert_eq!(list.peek(), Some(&9));
+    }
+
+    #[test]
     fn iter() {
         let mut list = List::new();
         list.push(1);
