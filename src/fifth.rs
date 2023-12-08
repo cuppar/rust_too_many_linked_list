@@ -5,7 +5,7 @@ pub struct List<T> {
     tail: *mut Node<T>,
 }
 
-type Link<T> = Option<Box<Node<T>>>;
+type Link<T> = *mut Node<T>;
 
 struct Node<T> {
     elem: T,
@@ -15,40 +15,53 @@ struct Node<T> {
 impl<T> List<T> {
     pub fn new() -> Self {
         List {
-            head: None,
+            head: null_mut(),
             tail: null_mut(),
         }
     }
 
     pub fn push(&mut self, elem: T) {
-        let mut new_tail = Node::new(elem);
-        let raw_tail: *mut _ = &mut *new_tail;
-
-        if !self.tail.is_null() {
-            unsafe {
-                (*self.tail).next = Some(new_tail);
+        unsafe {
+            let new_tail = Node::new(elem);
+            if !self.tail.is_null() {
+                (*self.tail).next = new_tail;
+            } else {
+                self.head = new_tail;
             }
-        } else {
-            self.head = Some(new_tail);
+            self.tail = new_tail;
         }
-
-        self.tail = raw_tail;
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        self.head.take().map(|old_head| {
-            self.head = old_head.next;
-            if self.head.is_none() {
-                self.tail = null_mut();
+        unsafe {
+            if self.head.is_null() {
+                None
+            } else {
+                let head = Box::from_raw(self.head);
+                self.head = head.next;
+
+                if self.head.is_null() {
+                    self.tail = null_mut();
+                }
+
+                Some(head.elem)
             }
-            old_head.elem
-        })
+        }
     }
 }
 
 impl<T> Node<T> {
-    fn new(elem: T) -> Box<Self> {
-        Box::new(Node { elem, next: None })
+    fn new(elem: T) -> *mut Self {
+        Box::into_raw(Box::new(Node {
+            elem,
+            next: null_mut(),
+        }))
+    }
+}
+
+impl<T> Drop for List<T> {
+    fn drop(&mut self) {
+        while let Some(_) = self.pop() {}
     }
 }
 
@@ -59,6 +72,7 @@ mod tests {
     #[test]
     fn basics() {
         let mut list = List::new();
+        assert_eq!(list.pop(), None);
         list.push(1);
         list.push(2);
         list.push(3);
